@@ -3,27 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Getaway Tracker (Voice Enabled)</title>
+    <title>Getaway Tracker (Voice & Logic Fixed)</title>
     <style>
-        /* --- Basic CSS for Compact & Mobile Friendly Design --- */
+        /* --- Basic CSS --- */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f4f4f9;
-            color: #333;
-            margin: 0;
-            padding: 10px;
-            padding-bottom: 60px; /* Space for mic button */
-            display: flex;
-            justify-content: center;
+            background-color: #f4f4f9; color: #333; margin: 0; padding: 10px; padding-bottom: 80px;
+            display: flex; justify-content: center;
         }
 
         #game-container {
-            width: 100%;
-            max-width: 500px;
-            background: #fff;
-            padding: 15px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 100%; max-width: 500px; background: #fff; padding: 15px;
+            border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         h1 { text-align: center; color: #1a73e8; margin-top: 0; font-size: 1.5em; }
@@ -32,9 +23,8 @@
         /* Setup */
         #setup { text-align: center; }
         .player-button {
-            background-color: #34a853; color: white; border: none;
-            padding: 10px 20px; margin: 5px; border-radius: 6px;
-            cursor: pointer; font-size: 1em; transition: background-color 0.2s;
+            background-color: #34a853; color: white; border: none; padding: 10px 20px;
+            margin: 5px; border-radius: 6px; cursor: pointer; font-size: 1em; transition: background-color 0.2s;
         }
         
         /* Hands */
@@ -97,48 +87,15 @@
         .modal-buttons { margin-top: 15px; display: flex; justify-content: space-around; }
 
         /* Voice Control UI */
-        #voice-control-container {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            z-index: 1000;
-        }
+        #voice-control-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; align-items: flex-end; z-index: 1000; }
         #mic-btn {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            border: none;
-            background-color: #4285f4;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: all 0.3s;
+            width: 60px; height: 60px; border-radius: 50%; border: none; background-color: #4285f4; color: white;
+            font-size: 24px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex; justify-content: center; align-items: center; transition: all 0.3s;
         }
-        #mic-btn.listening {
-            background-color: #ea4335;
-            animation: pulse 1.5s infinite;
-        }
-        #voice-log {
-            background-color: rgba(0,0,0,0.7);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            margin-bottom: 5px;
-            font-size: 0.8em;
-            display: none;
-        }
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(234, 67, 53, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); }
-        }
+        #mic-btn.listening { background-color: #ea4335; animation: pulse 1.5s infinite; }
+        #voice-log { background-color: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 4px; margin-bottom: 5px; font-size: 0.8em; display: none; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(234, 67, 53, 0); } 100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); } }
     </style>
 </head>
 <body>
@@ -236,7 +193,7 @@
         const modal = document.getElementById('playerPickModal');
         const modalOptionsDiv = document.getElementById('modalPlayerOptions');
 
-        // --- VOICE RECOGNITION SETUP ---
+        // --- VOICE SETUP ---
         const micBtn = document.getElementById('mic-btn');
         const voiceLog = document.getElementById('voice-log');
         let recognition;
@@ -254,18 +211,10 @@
                 showVoiceLog(`Hheard: "${transcript}"`);
                 processVoiceCommand(transcript);
             };
-
-            recognition.onerror = (event) => {
-                showVoiceLog("Voice Error: " + event.error);
-                if(isListening) toggleVoiceControl(); // stop on error
-            };
-            
-            recognition.onend = () => {
-                if (isListening) recognition.start(); // Restart if intended to be listening
-            };
+            recognition.onerror = (e) => { if(isListening) toggleVoiceControl(); };
+            recognition.onend = () => { if (isListening) recognition.start(); };
         } else {
             micBtn.style.display = 'none';
-            alert("Voice control not supported in this browser. Use Chrome.");
         }
 
         function toggleVoiceControl() {
@@ -280,111 +229,59 @@
                     recognition.start();
                     isListening = true;
                     micBtn.classList.add('listening');
-                    showVoiceLog("Microphone On - Listening...");
+                    showVoiceLog("Microphone On");
                 } catch (e) { console.error(e); }
             }
         }
-
         function showVoiceLog(msg) {
             voiceLog.textContent = msg;
             voiceLog.style.display = 'block';
             setTimeout(() => { voiceLog.style.display = 'none'; }, 3000);
         }
 
-        // --- VOICE LOGIC PROCESSING ---
-        const spokenRanks = {
-            "ace": "A", "king": "K", "queen": "Q", "jack": "J", "ten": "10", 
-            "nine": "9", "eight": "8", "seven": "7", "six": "6", "five": "5", 
-            "four": "4", "three": "3", "two": "2", "one": "A"
-        };
-        const spokenSuits = {
-            "spades": "♠", "spade": "♠",
-            "hearts": "♥", "heart": "♥",
-            "clubs": "♣", "club": "♣",
-            "diamonds": "♦", "diamond": "♦"
-        };
+        // Voice Vocabulary
+        const spokenRanks = { "ace": "A", "king": "K", "queen": "Q", "jack": "J", "ten": "10", "nine": "9", "eight": "8", "seven": "7", "six": "6", "five": "5", "four": "4", "three": "3", "two": "2", "one": "A" };
+        const spokenSuits = { "spades": "♠", "spade": "♠", "hearts": "♥", "heart": "♥", "clubs": "♣", "club": "♣", "diamonds": "♦", "diamond": "♦" };
         const numMap = { "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6 };
 
         function processVoiceCommand(cmd) {
             const lowerCmd = cmd.toLowerCase();
-
-            // 1. SETUP COMMANDS
             if (lowerCmd.includes("start with")) {
                 const match = lowerCmd.match(/start with (\w+) players?/);
                 if (match) {
                     let num = parseInt(match[1]);
-                    if (isNaN(num)) num = numMap[match[1]]; // try word map
+                    if (isNaN(num)) num = numMap[match[1]];
                     if (num >= 3 && num <= 6) startGame(num);
                 }
             }
-            // 2. RESET
-            else if (lowerCmd.includes("reset game")) {
-                resetGame();
-            }
-            // 3. PLAY CARD (e.g., "Play Ace of Spades")
+            else if (lowerCmd.includes("reset game")) resetGame();
             else if (lowerCmd.includes("play")) {
-                // Find Rank
                 let foundRank = null;
                 for (const [spoken, val] of Object.entries(spokenRanks)) {
-                    if (lowerCmd.includes(spoken) || lowerCmd.includes(val.toLowerCase())) {
-                        // Check exact digit match or word match
-                        if(lowerCmd.includes(" " + spoken) || lowerCmd.includes(spoken + " ") || lowerCmd.includes(val)) {
-                           foundRank = val;
-                           break; 
-                        }
-                    }
+                    if (lowerCmd.includes(" " + spoken) || lowerCmd.includes(spoken + " ") || lowerCmd.includes(val.toLowerCase())) { foundRank = val; break; }
                 }
-                // Handle raw numbers (2-10) in string
-                if (!foundRank) {
-                   const digitMatch = lowerCmd.match(/\b(\d0?|10|a|j|q|k)\b/);
-                   if(digitMatch) foundRank = digitMatch[1].toUpperCase();
-                }
-
-                // Find Suit
+                if (!foundRank) { const digitMatch = lowerCmd.match(/\b(\d0?|10|a|j|q|k)\b/); if(digitMatch) foundRank = digitMatch[1].toUpperCase(); }
                 let foundSuit = null;
                 for (const [spoken, val] of Object.entries(spokenSuits)) {
-                    if (lowerCmd.includes(spoken)) {
-                        foundSuit = val;
-                        break;
-                    }
+                    if (lowerCmd.includes(spoken)) { foundSuit = val; break; }
                 }
-
-                if (foundRank && foundSuit) {
-                    playCard(`${foundRank}${foundSuit}`);
-                }
+                if (foundRank && foundSuit) playCard(`${foundRank}${foundSuit}`);
             }
-            // 4. TRICK ACTIONS
-            else if (lowerCmd.includes("tochoo") || lowerCmd.includes("pick up")) {
-                if (document.getElementById('tochoo-btn').offsetParent !== null) {
-                    showTrickEndModal(true);
-                }
-            }
-            else if (lowerCmd.includes("trick finished") || lowerCmd.includes("cards out")) {
-                if (document.getElementById('normal-end-btn').offsetParent !== null) {
-                    handleTrickEnd(false);
-                }
-            }
-            // 5. MODAL SELECTION
+            else if (lowerCmd.includes("tochoo") || lowerCmd.includes("pick up")) { if (document.getElementById('tochoo-btn').offsetParent !== null) showTrickEndModal(true); }
+            else if (lowerCmd.includes("trick finished") || lowerCmd.includes("cards out")) { if (document.getElementById('normal-end-btn').offsetParent !== null) handleTrickEnd(false); }
             else if (lowerCmd.includes("select player") || lowerCmd.includes("pick player")) {
                 const match = lowerCmd.match(/player (\w+)/);
                 if (match) {
                     let num = parseInt(match[1]);
                     if (isNaN(num)) num = numMap[match[1]];
-                    if (num && num > 0 && num <= players) {
-                        selectPlayer(num - 1); // convert to index
-                    }
+                    if (num && num > 0 && num <= players) selectPlayer(num - 1);
                 }
             }
-            else if (lowerCmd.includes("confirm pick")) {
-                if (modal.style.display === 'flex') resolveTochooPick();
-            }
-            else if (lowerCmd.includes("cancel")) {
-                 modal.style.display = 'none';
-            }
+            else if (lowerCmd.includes("confirm pick")) { if (modal.style.display === 'flex') resolveTochooPick(); }
+            else if (lowerCmd.includes("cancel")) modal.style.display = 'none';
         }
 
-
-        // --- INITIALIZATION ---
+        // --- GAME LOGIC ---
 
         function initializeDeck() {
             deck = [];
@@ -394,10 +291,7 @@
                 RANKS_ASCENDING.forEach(rank => {
                     const customRankIndex = RANKS_CUSTOM_SORT.indexOf(rank);
                     const rankValue = MAX_RANK_VALUE - customRankIndex; 
-                    deck.push({ 
-                        rank: rank, suit: suit, display: `${rank}${suit}`, 
-                        colorClass: isRedSuit ? 'suit-red' : 'suit-black', rankValue: rankValue 
-                    }); 
+                    deck.push({ rank: rank, suit: suit, display: `${rank}${suit}`, colorClass: isRedSuit ? 'suit-red' : 'suit-black', rankValue: rankValue }); 
                 });
             });
         }
@@ -406,9 +300,7 @@
             const baseSize = Math.floor(TOTAL_CARDS / numPlayers);
             const remainder = TOTAL_CARDS % numPlayers;
             const distribution = [];
-            for (let i = 0; i < numPlayers; i++) {
-                distribution.push(baseSize + (i < remainder ? 1 : 0));
-            }
+            for (let i = 0; i < numPlayers; i++) distribution.push(baseSize + (i < remainder ? 1 : 0));
             return distribution;
         }
 
@@ -434,31 +326,15 @@
         }
         
         function resetGame() {
-            if (confirm("Are you sure you want to reset the game?")) {
-                players = 0;
-                currentPlayerIndex = 0;
-                currentTrick = [];
-                playedCardsTotal.clear();
-                playersData = [];
-                outOfPlay = [];
-                activePlayers = [];
-                gameStateDiv.style.display = 'none';
-                setupDiv.style.display = 'block';
-                playerHandsList.innerHTML = '';
-                trickCardsList.innerHTML = '';
-                outOfPlayContainer.innerHTML = '';
-                trickCountSpan.textContent = '0';
-                outOfPlayCountSpan.textContent = '0';
-                cardSelectionDiv.innerHTML = '';
+            if (confirm("Reset game?")) {
+                players = 0; currentPlayerIndex = 0; currentTrick = []; playedCardsTotal.clear(); playersData = []; outOfPlay = []; activePlayers = [];
+                gameStateDiv.style.display = 'none'; setupDiv.style.display = 'block';
+                playerHandsList.innerHTML = ''; trickCardsList.innerHTML = ''; outOfPlayContainer.innerHTML = ''; trickCountSpan.textContent = '0'; outOfPlayCountSpan.textContent = '0'; cardSelectionDiv.innerHTML = '';
             }
         }
 
         function renderAllUI() {
-            renderTurn();
-            renderPlayerHands();
-            renderCardOptions();
-            renderTrick();
-            renderOutOfPlay();
+            renderTurn(); renderPlayerHands(); renderCardOptions(); renderTrick(); renderOutOfPlay();
         }
 
         function sortCustomCards(a, b) {
@@ -471,11 +347,7 @@
         }
 
         function renderTurn() {
-            if (activePlayers.length === 0) {
-                 turnDisplay.textContent = "GAME OVER: All players are out!";
-                 cardSelectionDiv.style.pointerEvents = 'none';
-                 return;
-            }
+            if (activePlayers.length === 0) { turnDisplay.textContent = "GAME OVER: All players are out!"; cardSelectionDiv.style.pointerEvents = 'none'; return; }
             turnDisplay.textContent = `${playersData[currentPlayerIndex].display}'s Turn`;
         }
         
@@ -567,18 +439,38 @@
         function renderCardOptions() {
             cardSelectionDiv.innerHTML = '';
             const currentPlayer = playersData[currentPlayerIndex];
+            
             if (!currentPlayer || currentPlayer.totalCards === 0) {
                  cardSelectionDiv.innerHTML = "<p style='width: 100%; text-align: center; color: #888; font-weight: bold;'>Player is OUT.</p>";
                  cardSelectionDiv.style.pointerEvents = 'none';
                  return;
             }
-            const availableCards = deck.filter(card => !playedCardsTotal.has(card.display));
-            const cardsInTrick = new Set(currentTrick.map(c => c.card));
-            let cardsToDisplay = availableCards.filter(card => !cardsInTrick.has(card.display));
 
-            if (currentPlayer.openCards.length > 0) {
-                const openCardDisplays = new Set(currentPlayer.openCards.map(c => c.display));
-                cardsToDisplay = cardsToDisplay.filter(card => openCardDisplays.has(card.display));
+            // 1. Get all cards that are NOT discarded
+            const availableCards = deck.filter(card => !playedCardsTotal.has(card.display));
+            
+            // 2. Exclude cards in the current trick
+            const cardsInTrick = new Set(currentTrick.map(c => c.card));
+            
+            // 3. Exclude cards held OPEN by OTHER players
+            // (Current player CAN play their own open cards, but cannot play a card someone else is holding)
+            const otherPlayersOpenCards = new Set();
+            playersData.forEach((p, index) => {
+                if (index !== currentPlayerIndex) {
+                    p.openCards.forEach(c => otherPlayersOpenCards.add(c.display));
+                }
+            });
+
+            // 4. Initial Filter
+            let cardsToDisplay = availableCards.filter(card => 
+                !cardsInTrick.has(card.display) && 
+                !otherPlayersOpenCards.has(card.display)
+            );
+
+            // 5. Special Case: If player has NO unseen cards left, they can ONLY play their open cards.
+            if (currentPlayer.unseenCount === 0) {
+                 const myOpenCards = new Set(currentPlayer.openCards.map(c => c.display));
+                 cardsToDisplay = cardsToDisplay.filter(card => myOpenCards.has(card.display));
             }
 
             if (cardsToDisplay.length === 0) {
@@ -630,19 +522,13 @@
                 }
             }
             if (showTrickButtons) trickButtonsDiv.style.display = 'block';
-            else {
-                trickButtonsDiv.style.display = 'none';
-                cardSelectionDiv.style.pointerEvents = 'auto'; 
-            }
+            else { trickButtonsDiv.style.display = 'none'; cardSelectionDiv.style.pointerEvents = 'auto'; }
         }
         
         function setCustomName(playerIndex) {
             const currentName = playersData[playerIndex].display;
-            let newName = prompt(`Enter a new name for Player ${playerIndex + 1}:`, currentName);
-            if (newName && newName.trim() !== "") {
-                playersData[playerIndex].display = newName.trim();
-                renderAllUI(); 
-            }
+            let newName = prompt(`Enter new name:`, currentName);
+            if (newName && newName.trim() !== "") { playersData[playerIndex].display = newName.trim(); renderAllUI(); }
         }
 
         function adjustHandSize(playerIndex) {
@@ -650,10 +536,7 @@
             let newCount = prompt(`Enter unseen cards for ${playersData[playerIndex].display}:`, currentUnseen);
             if (newCount !== null) {
                 newCount = parseInt(newCount);
-                if (!isNaN(newCount) && newCount >= 0) {
-                    playersData[playerIndex].unseenCount = newCount;
-                    updateActivePlayers(); renderPlayerHands(); 
-                }
+                if (!isNaN(newCount) && newCount >= 0) { playersData[playerIndex].unseenCount = newCount; updateActivePlayers(); renderPlayerHands(); }
             }
         }
         
@@ -673,10 +556,7 @@
             trick.forEach(trickItem => {
                 const card = deck.find(c => c.display === trickItem.card);
                 if (card.suit === leadSuit) {
-                    if (card.rankValue > highestRankValue) {
-                        highestRankValue = card.rankValue;
-                        highestCardPlayerIndex = trickItem.playedBy;
-                    }
+                    if (card.rankValue > highestRankValue) { highestRankValue = card.rankValue; highestCardPlayerIndex = trickItem.playedBy; }
                 }
             });
             if (highestCardPlayerIndex === -1) return trick[0].playedBy;
@@ -692,7 +572,7 @@
             const openCardIndex = currentPlayer.openCards.findIndex(c => c.display === card.display);
             if (openCardIndex !== -1) currentPlayer.openCards.splice(openCardIndex, 1); 
             else if (currentPlayer.unseenCount > 0) currentPlayer.unseenCount--; 
-            else return;
+            else return; // Should not happen given render logic
             
             currentPlayer.totalCards--; 
             
