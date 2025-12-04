@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cards & Persons Toggle</title>
+    <style>
+        :root {
+            --bg: #0f1220;
+            --panel: #161a2f;
+            --text: #e6e8f0;
+            --muted: #a8b0c3;
+            --btn: #3a3f55;        /* grey */
+            --btn-active: #2b78ff; /* blue */
+            --accent: #2b78ff;
+            --gap: 10px;
+            --radius: 10px;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 24px; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+            background: radial-gradient(1200px 800px at 20% -10%, #1a1f3a, var(--bg));
+            color: var(--text);
+        }
+        h1 { font-size: 22px; margin: 0 0 16px; font-weight: 700; }
+
+        .panel {
+            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: var(--radius);
+            padding: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+            backdrop-filter: blur(6px);
+        }
+
+        .row { display: grid; grid-template-columns: 160px 1fr; gap: var(--gap); align-items: start; }
+        .row + .row { margin-top: 14px; }
+
+        .suit-heading {
+            display: inline-flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .2px;
+            padding: 8px 12px; border-radius: 12px; background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .suit-heading .icon { width: 20px; height: 20px; display: inline-flex; }
+
+        .btns { display: flex; flex-wrap: wrap; gap: var(--gap); }
+
+        /* Rank buttons (A, K, Q, ... 2) */
+        button.card-btn {
+            appearance: none; border: 1px solid rgba(255,255,255,0.08);
+            background: var(--btn); color: var(--text);
+            padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: 600;
+            letter-spacing: .3px; transition: background .15s ease, transform .02s ease;
+        }
+        button.card-btn:active { transform: translateY(1px); }
+        button.card-btn.active { background: var(--btn-active); }
+
+        /* Compact suit buttons (icon-only) */
+        .suit-btn {
+            width: 36px; height: 36px; padding: 0; border-radius: 10px;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .suit-btn .icon { width: 18px; height: 18px; }
+
+        /* Persons area */
+        .people-setup { margin-top: 22px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+        .people-setup .controls { display: flex; gap: 8px; align-items: center; }
+        .people-setup input[type="number"] {
+            width: 80px; padding: 8px 10px; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.12); background: #11152a; color: var(--text);
+        }
+        .people-setup button { padding: 8px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: var(--accent); color: white; font-weight: 700; cursor: pointer; }
+        .people-setup .hint { color: var(--muted); font-size: 13px; }
+        .error { color: #ff6b6b; font-size: 13px; }
+
+        .people { margin-top: 14px; display: grid; gap: 12px; }
+        .person { padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+        .person .title { font-weight: 700; margin-bottom: 8px; }
+
+        @media (max-width: 720px) {
+            .row { grid-template-columns: 1fr; }
+        }
+        /* --- New compact chip row styles --- */
+        .chip-row { display: flex; gap: var(--gap); align-items: center; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 6px; }
+        .card-chip {
+            appearance: none; border: 1px solid rgba(255,255,255,0.12);
+            background: var(--btn); color: var(--text);
+            padding: 8px 10px; border-radius: 10px; cursor: pointer; font-weight: 600;
+            letter-spacing: .3px; transition: background .15s ease, transform .02s ease, border-color .15s ease;
+            min-width: 44px; min-height: 36px; display: inline-flex; align-items: center; gap: 6px;
+            white-space: nowrap;
+        }
+        .card-chip:active { transform: translateY(1px); }
+        .card-chip.known {
+            background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+            border-color: rgba(255,255,255,0.18);
+        }
+        .card-chip .suit .icon { width: 16px; height: 16px; color: var(--chip-accent, var(--text)); }
+        .card-chip .rank { font-weight: 700; }
+
+        /* --- Modals (picker & remainder) --- */
+        .modal.hidden { display: none; }
+        .modal { position: fixed; inset: 0; z-index: 1000; }
+        .modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.6); }
+        .modal-card {
+            position: absolute; inset: 6% auto auto 50%; transform: translateX(-50%);
+            width: min(920px, 96vw); max-height: 88vh; overflow: hidden;
+            background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+            border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; color: var(--text);
+            display: flex; flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .modal-title { font-weight: 800; letter-spacing: .3px; }
+        .modal-close { appearance: none; background: transparent; border: 1px solid rgba(255,255,255,0.14); color: var(--text); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+        .modal-content { padding: 12px 14px; overflow: auto; }
+        .modal-footer { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 14px; border-top: 1px solid rgba(255,255,255,0.08); }
+        .btn-primary { background: var(--accent); color: #fff; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 12px; font-weight: 800; cursor: pointer; }
+        .btn-secondary { background: #232744; color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 12px; font-weight: 700; cursor: pointer; }
+        .btn-primary:disabled, .btn-secondary:disabled { opacity: .6; cursor: not-allowed; }
+
+        /* Picker grid */
+        .picker-row { display: grid; grid-template-columns: 150px 1fr; gap: var(--gap); align-items: center; }
+        .picker-row + .picker-row { margin-top: 10px; }
+        .picker-suit { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; padding: 6px 10px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+        .picker-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+        .picker-card { appearance: none; border: 1px solid rgba(255,255,255,0.12); background: #222742; color: var(--text); border-radius: 10px; padding: 6px 10px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+        .picker-card .suit .icon { width: 16px; height: 16px; color: var(--chip-accent, var(--text)); }
+        .picker-card .rank { font-weight: 700; }
+        .picker-card:disabled { opacity: .45; cursor: not-allowed; }
+
+        /* Remainder list */
+        .reminder-text { color: var(--muted); margin-bottom: 8px; }
+        .rem-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+        .rem-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+        .rem-item input { transform: scale(1.1); }
+
+        @media (max-width: 720px) {
+            .modal-card { inset: auto 0 0 0; transform: none; width: 100vw; max-height: 92vh; border-radius: 14px 14px 0 0; }
+            .picker-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<h1>Open Board</h1>
+
+<div class="panel" id="card-rows"></div>
+
+<div class="panel" style="margin-top:16px;">
+    <div class="people-setup">
+        <div class="controls">
+            <label for="peopleCount">Number of persons (3-6):</label>
+            <input id="peopleCount" type="number" min="3" max="6" value="3" />
+            <button id="startBtn" type="button">Start</button>
+        </div>
+        <div class="hint">After starting, you can press Start again to change the count. Current state will reset.</div>
+    </div>
+    <div id="peopleError" class="error" role="alert" aria-live="polite" style="min-height:1em; margin-top:6px;"></div>
+    <div id="people" class="people"></div>
+</div>
+
+<script>
+    // ---------- Suits & Ranks ----------
+    const SUITS = [
+        { key: 'spades',   name: 'Spades',   color: '#e6e8f0', icon: suitSVG('spade')   },
+        { key: 'hearts',   name: 'Hearts',   color: '#ff6b6b', icon: suitSVG('heart')   },
+        { key: 'diamonds', name: 'Diamonds', color: '#4dd0ff', icon: suitSVG('diamond') },
+        { key: 'clubs',    name: 'Clubs',    color: '#a2e05e', icon: suitSVG('club')    },
+    ];
+    const RANKS = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+
+    function suitSVG(type) {
+        switch (type) {
+            case 'spade':
+                return `
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M12 2C8 6 5 8.5 5 11.5C5 13.4 6.6 15 8.5 15C9.7 15 10.8 14.4 11.5 13.5C10.9 16 9 17 7 18H17C15 17 13.1 16 12.5 13.5C13.2 14.4 14.3 15 15.5 15C17.4 15 19 13.4 19 11.5C19 8.5 16 6 12 2Z" />
+              <rect x="11" y="18" width="2" height="4" fill="currentColor" />
+            </svg>`;
+            case 'heart':
+                return `
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M12 21s-6.716-4.632-9.192-7.108C.333 11.417.333 7.75 2.808 5.273 4.54 3.54 7.35 3.35 9.273 5.273L12 8l2.727-2.727c1.923-1.923 4.733-1.733 6.465 0 2.475 2.477 2.475 6.144 0 8.619C18.716 16.368 12 21 12 21z" />
+            </svg>`;
+            case 'diamond':
+                return `
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M12 2l7 10-7 10L5 12 12 2z" />
+            </svg>`;
+            case 'club':
+                return `
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M12 2c-2.21 0-4 1.79-4 4 0 .53.11 1.04.3 1.5C7.51 7.2 6.78 7 6 7 3.79 7 2 8.79 2 11s1.79 4 4 4c.78 0 1.51-.2 2.3-.5-.19.46-.3.97-.3 1.5 0 2.21 1.79 4 4 4s4-1.79 4-4c0-.53-.11-1.04-.3-1.5.79.3 1.52.5 2.3.5 2.21 0 4-1.79 4-4s-1.79-4-4-4c-.78 0-1.51.2-2.3.5.19-.46.3-.97.3-1.5 0-2.21-1.79-4-4-4z" />
+              <rect x="11" y="18" width="2" height="4" fill="currentColor" />
+            </svg>`;
+        }
+        return '';
+    }
+
+    // ---------- State ----------
+    // Single-deck uniqueness: cardKey -> { ownerId, slotIndex|null }
+    const cardOwners = new Map();
+    // Owners (persons + board): ownerId -> { slots: (cardKey|null)[], rowEl, titleEl }
+    const owners = new Map();
+
+    const boardContainer = document.getElementById('card-rows');
+
+    // ---------- UI helpers ----------
+    function cardKey(suit, rank){ return `${suit}-${rank}`; }
+    function parseKey(key){ const [suit, rank] = key.split('-'); return {suit, rank}; }
+    function suitMeta(suitKey){ return SUITS.find(s => s.key === suitKey); }
+
+    function chipLabelFromKey(key){
+        const {suit, rank} = parseKey(key);
+        const suitInfo = suitMeta(suit);
+        return `${suitInfo ? suitInfo.name : suit} ${rank}`;
+    }
+
+    function makeChip({text='?', title='', suitKey=null, known=false}){
+        const btn = document.createElement('button');
+        btn.className = 'card-chip';
+        btn.type = 'button';
+        btn.setAttribute('aria-label', title || text);
+        if (known) btn.classList.add('known');
+        if (suitKey){
+            const meta = suitMeta(suitKey);
+            if (meta){
+                btn.style.setProperty('--chip-accent', meta.color);
+                btn.innerHTML = `<span class="suit">${meta.icon}</span><span class="rank">${text.replace(/^[^ ]+\s/, '')}</span>`;
+            } else {
+                btn.textContent = text;
+            }
+        } else {
+            btn.textContent = text;
+        }
+        return btn;
+    }
+
+    function renderOwnerRow(ownerId){
+        const owner = owners.get(ownerId);
+        const row = owner.rowEl;
+        row.innerHTML = '';
+        // Board is dynamic: render chips for each card in its slots (array of keys)
+        if (ownerId === 'board'){
+            owner.slots.forEach((key, idx) => {
+                if (!key) return; // board uses only filled
+                const {suit, rank} = parseKey(key);
+                const chip = makeChip({text: chipLabelFromKey(key), title: chipLabelFromKey(key), suitKey: suit, known: true});
+                chip.dataset.owner = ownerId;
+                chip.dataset.slot = String(idx);
+                chip.dataset.cardKey = key;
+                row.appendChild(chip);
+            });
+            return;
+        }
+        // Persons: render fixed-length chips (unknown or known)
+        owner.slots.forEach((key, idx) => {
+            if (key){
+                const {suit, rank} = parseKey(key);
+                const chip = makeChip({text: chipLabelFromKey(key), title: chipLabelFromKey(key), suitKey: suit, known: true});
+                chip.dataset.owner = ownerId;
+                chip.dataset.slot = String(idx);
+                chip.dataset.cardKey = key;
+                row.appendChild(chip);
+            } else {
+                const chip = makeChip({text: '?', title: 'Unknown slot'});
+                chip.dataset.owner = ownerId;
+                chip.dataset.slot = String(idx);
+                row.appendChild(chip);
+            }
+        });
+    }
+
+    function getOwnerLabel(ownerId){
+        if (ownerId === 'board') return 'Open Board';
+        const owner = owners.get(ownerId);
+        const t = owner?.titleEl?.textContent?.trim();
+        return t || ownerId;
+    }
+
+    // ---------- Ownership ops ----------
+    function clearOwner(cardKeyStr){
+        const prev = cardOwners.get(cardKeyStr);
+        if (!prev) return;
+        const { ownerId, slotIndex } = prev;
+        const owner = owners.get(ownerId);
+        if (!owner) { cardOwners.delete(cardKeyStr); return; }
+        if (ownerId === 'board'){
+            // remove chip entry
+            const idx = owner.slots.indexOf(cardKeyStr);
+            if (idx >= 0) owner.slots.splice(idx, 1);
+        } else if (typeof slotIndex === 'number'){
+            if (owner.slots[slotIndex] === cardKeyStr){ owner.slots[slotIndex] = null; }
+        }
+        cardOwners.delete(cardKeyStr);
+        renderOwnerRow(ownerId);
+    }
+
+    function setOwner(cardKeyStr, newOwnerId, slotIndex=null){
+        // Unassign from previous if needed
+        const prev = cardOwners.get(cardKeyStr);
+        if (prev && (prev.ownerId !== newOwnerId || prev.slotIndex !== slotIndex)){
+            clearOwner(cardKeyStr);
+        }
+        const owner = owners.get(newOwnerId);
+        if (!owner) return;
+        if (newOwnerId === 'board'){
+            if (!owner.slots.includes(cardKeyStr)) owner.slots.push(cardKeyStr);
+            cardOwners.set(cardKeyStr, { ownerId: newOwnerId, slotIndex: null });
+            renderOwnerRow('board');
+        } else if (typeof slotIndex === 'number'){
+            // If this slot currently has some other card, clear that card first
+            const existing = owner.slots[slotIndex];
+            if (existing && existing !== cardKeyStr){
+                clearOwner(existing);
+            }
+            owner.slots[slotIndex] = cardKeyStr;
+            cardOwners.set(cardKeyStr, { ownerId: newOwnerId, slotIndex });
+            renderOwnerRow(newOwnerId);
+        }
+    }
+
+    // ---------- Picker Modal ----------
+    const picker = createPickerModal();
+    document.body.appendChild(picker.host);
+    function createPickerModal(){
+        const host = document.createElement('div');
+        host.className = 'modal hidden';
+        host.innerHTML = `
+            <div class="modal-backdrop"></div>
+            <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+              <div class="modal-header">
+                <div id="pickerTitle" class="modal-title">Choose a card</div>
+                <button type="button" class="modal-close" aria-label="Close">×</button>
+              </div>
+              <div class="modal-content">
+                <div class="picker-grid"></div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn-secondary picker-clear">Clear to Unknown</button>
+                <button type="button" class="btn-primary picker-to-board">Assign to Open Board</button>
+              </div>
+            </div>`;
+        const grid = host.querySelector('.picker-grid');
+        // Build 4 rows x 13
+        SUITS.forEach(suit => {
+            const row = document.createElement('div');
+            row.className = 'picker-row';
+            const heading = document.createElement('div');
+            heading.className = 'picker-suit';
+            heading.style.color = suit.color;
+            heading.innerHTML = `${suit.icon}<span>${suit.name}</span>`;
+            row.appendChild(heading);
+            const rowBtns = document.createElement('div');
+            rowBtns.className = 'picker-btns';
+            RANKS.forEach(rank => {
+                const key = cardKey(suit.key, rank);
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'picker-card';
+                b.setAttribute('data-key', key);
+                b.style.setProperty('--chip-accent', suit.color);
+                b.innerHTML = `<span class="suit">${suit.icon}</span><span class="rank">${rank}</span>`;
+                rowBtns.appendChild(b);
+            });
+            row.appendChild(rowBtns);
+            grid.appendChild(row);
+        });
+        const api = {
+            host,
+            open(ctx){
+                host.classList.remove('hidden');
+                host.dataset.owner = ctx.ownerId;
+                host.dataset.slot = ctx.slotIndex != null ? String(ctx.slotIndex) : '';
+                host.dataset.current = ctx.currentKey || '';
+                // Disable already-owned cards
+                host.querySelectorAll('.picker-card').forEach(btn => {
+                    const key = btn.getAttribute('data-key');
+                    const owned = cardOwners.get(key);
+                    const isCurrent = key === ctx.currentKey;
+                    btn.disabled = !!owned && !isCurrent;
+                    btn.title = owned && !isCurrent ? `Owned by ${getOwnerLabel(owned.ownerId)}` : '';
+                });
+            },
+            close(){ host.classList.add('hidden'); },
+        };
+        // Interactions
+        host.addEventListener('click', (e) => {
+            const t = e.target;
+            if (!(t instanceof HTMLElement)) return;
+            if (t.classList.contains('modal-backdrop') || t.classList.contains('modal-close')){
+                api.close();
+                return;
+            }
+            if (t.classList.contains('picker-card')){
+                const key = t.getAttribute('data-key');
+                const ownerId = host.dataset.owner;
+                const slotStr = host.dataset.slot;
+                const slotIndex = slotStr === '' ? null : Number(slotStr);
+                setOwner(key, ownerId, slotIndex);
+                api.close();
+                return;
+            }
+            if (t.classList.contains('picker-clear')){
+                const current = host.dataset.current;
+                const ownerId = host.dataset.owner;
+                const slotStr = host.dataset.slot;
+                const slotIndex = slotStr === '' ? null : Number(slotStr);
+                if (current){
+                    clearOwner(current);
+                } else if (ownerId !== 'board' && typeof slotIndex === 'number'){
+                    const owner = owners.get(ownerId);
+                    owner.slots[slotIndex] = null;
+                    renderOwnerRow(ownerId);
+                }
+                api.close();
+                return;
+            }
+            if (t.classList.contains('picker-to-board')){
+                const current = host.dataset.current;
+                if (current){
+                    setOwner(current, 'board', null);
+                }
+                api.close();
+                return;
+            }
+        });
+        return api;
+    }
+
+    // ---------- Remainder selection modal ----------
+    const remainder = createRemainderModal();
+    document.body.appendChild(remainder.host);
+    function createRemainderModal(){
+        const host = document.createElement('div');
+        host.className = 'modal hidden';
+        host.innerHTML = `
+            <div class="modal-backdrop"></div>
+            <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="remTitle">
+              <div class="modal-header">
+                <div id="remTitle" class="modal-title">Distribute extra cards</div>
+                <button type="button" class="modal-close" aria-label="Close">×</button>
+              </div>
+              <div class="modal-content">
+                <div class="reminder-text">Select <span class="rem-count"></span> person(s) to receive one extra slot.</div>
+                <div class="rem-list"></div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn-secondary rem-cancel">Cancel</button>
+                <button type="button" class="btn-primary rem-confirm" disabled>Confirm</button>
+              </div>
+            </div>`;
+        const api = {
+            host,
+            open(personIds, count, cb){
+                host.classList.remove('hidden');
+                host.dataset.count = String(count);
+                host._cb = cb;
+                host.querySelector('.rem-count').textContent = String(count);
+                const list = host.querySelector('.rem-list');
+                list.innerHTML = '';
+                personIds.forEach(pid => {
+                    const label = getOwnerLabel(pid) || pid;
+                    const item = document.createElement('label');
+                    item.className = 'rem-item';
+                    item.innerHTML = `<input type="checkbox" value="${pid}"><span>${label}</span>`;
+                    list.appendChild(item);
+                });
+                validate();
+            },
+            close(){ host.classList.add('hidden'); host._cb = null; },
+        };
+        function validate(){
+            const need = Number(host.dataset.count || '0');
+            const checked = Array.from(host.querySelectorAll('input[type="checkbox"]:checked'));
+            const btn = host.querySelector('.rem-confirm');
+            btn.disabled = checked.length !== need;
+        }
+        host.addEventListener('change', (e) => {
+            if (e.target instanceof HTMLInputElement) validate();
+        });
+        host.addEventListener('click', (e) => {
+            const t = e.target;
+            if (!(t instanceof HTMLElement)) return;
+            if (t.classList.contains('modal-backdrop') || t.classList.contains('modal-close') || t.classList.contains('rem-cancel')){
+                api.close();
+                return;
+            }
+            if (t.classList.contains('rem-confirm')){
+                const selected = Array.from(host.querySelectorAll('input[type="checkbox"]:checked')).map(i => i.value);
+                const cb = host._cb; api.close();
+                if (cb) cb(selected);
+                return;
+            }
+        });
+        return api;
+    }
+
+    // ---------- Build sections ----------
+    const startBtn = document.getElementById('startBtn');
+    const peopleCountInput = document.getElementById('peopleCount');
+    const peopleWrap = document.getElementById('people');
+    const peopleError = document.getElementById('peopleError');
+
+    function resetAll(){
+        // Clear maps
+        cardOwners.clear();
+        owners.clear();
+        // Clear UI
+        peopleWrap.innerHTML = '';
+        boardContainer.innerHTML = '';
+    }
+
+    function createPerson(ownerId, displayName){
+        const person = document.createElement('div');
+        person.className = 'person';
+        person.setAttribute('data-owner', ownerId);
+        const title = document.createElement('div');
+        title.className = 'title person-title';
+        title.textContent = displayName;
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        person.appendChild(title);
+        person.appendChild(row);
+        peopleWrap.appendChild(person);
+        owners.set(ownerId, { slots: [], rowEl: row, titleEl: title });
+    }
+
+    function createBoard(){
+        boardContainer.setAttribute('data-owner', 'board');
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        boardContainer.appendChild(row);
+        owners.set('board', { slots: [], rowEl: row, titleEl: null });
+    }
+
+    function distributeSlots(n){
+        const base = Math.floor(52 / n);
+        const rem = 52 % n;
+        const personIds = [];
+        for (let i=1;i<=n;i++){
+            const id = `p${i}`; personIds.push(id);
+            owners.get(id).slots = new Array(base).fill(null);
+            renderOwnerRow(id);
+        }
+        if (rem > 0){
+            remainder.open(personIds, rem, (selected) => {
+                selected.forEach(pid => {
+                    const o = owners.get(pid);
+                    o.slots.push(null);
+                    renderOwnerRow(pid);
+                });
+            });
+        }
+    }
+
+    startBtn.addEventListener('click', () => {
+        peopleError.textContent = '';
+        const n = Number(peopleCountInput.value);
+        if (!Number.isInteger(n) || n < 3 || n > 6){
+            peopleError.textContent = 'Please enter a whole number between 3 and 6.';
+            return;
+        }
+        // Reset all
+        resetAll();
+        createBoard();
+        for (let i=1;i<=n;i++){
+            createPerson(`p${i}`, `Person ${i}`);
+        }
+        distributeSlots(n);
+    });
+
+    // ---------- Global interactions ----------
+    document.addEventListener('click', (e) => {
+        const t = e.target;
+        if (!(t instanceof HTMLElement)) return;
+        // Rename person
+        if (t.classList.contains('person-title') || (t.classList.contains('title') && t.closest('.person'))){
+            const titleEl = t.classList.contains('title') ? t : t.closest('.title');
+            const current = titleEl.textContent.trim();
+            const name = prompt('Enter person name:', current);
+            if (name !== null){
+                const text = name.trim();
+                if (text){
+                    titleEl.textContent = text;
+                }
+            }
+            return;
+        }
+        // Chip click (person or board)
+        if (t.classList.contains('card-chip')){
+            const ownerId = t.dataset.owner;
+            const slotIndex = t.dataset.slot ? Number(t.dataset.slot) : null;
+            const currentKey = t.dataset.cardKey || '';
+            const label = getOwnerLabel(ownerId);
+            const title = currentKey ? `Edit ${chipLabelFromKey(currentKey)} — ${label}` : `Assign a card — ${label}`;
+            const titleEl = picker.host.querySelector('#pickerTitle');
+            if (titleEl) titleEl.textContent = title;
+            picker.open({ ownerId, slotIndex, currentKey });
+            return;
+        }
+    });
+
+    // Initialize default UI
+    createBoard();
+</script>
+</body>
+</html>
