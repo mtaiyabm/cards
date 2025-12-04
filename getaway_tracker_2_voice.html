@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Getaway Tracker (Voice Enabled)</title>
+    <style>
+        /* --- Basic CSS for Compact & Mobile Friendly Design --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 10px;
+            padding-bottom: 60px; /* Space for mic button */
+            display: flex;
+            justify-content: center;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 500px;
+            background: #fff;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 { text-align: center; color: #1a73e8; margin-top: 0; font-size: 1.5em; }
+        .section { margin-bottom: 20px; padding: 10px; border-bottom: 1px solid #eee; }
+        
+        /* Setup */
+        #setup { text-align: center; }
+        .player-button {
+            background-color: #34a853; color: white; border: none;
+            padding: 10px 20px; margin: 5px; border-radius: 6px;
+            cursor: pointer; font-size: 1em; transition: background-color 0.2s;
+        }
+        
+        /* Hands */
+        #player-hands-list { list-style: none; padding: 0; }
+        .player-hand { display: flex; align-items: flex-start; padding: 8px 0; border-bottom: 1px dotted #eee; }
+        .player-hand-name { font-weight: bold; flex-basis: 90px; flex-shrink: 0; color: #4285f4; cursor: pointer; text-decoration: underline dotted; }
+        .player-hand-name.out { color: #888; text-decoration: none; font-style: italic; }
+        .player-hand-cards { flex-grow: 1; display: flex; flex-wrap: wrap; gap: 4px; }
+        .hand-tag { background-color: #f0f0f0; padding: 3px 6px; border-radius: 4px; font-size: 0.8em; }
+        .unseen-tag { background-color: #9e9e9e; color: white; font-weight: bold; cursor: pointer; }
+        
+        /* Cards */
+        .played-card-tag { background-color: #fbbc05; color: #333; padding: 5px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600; }
+        .played-card-tag.suit-red { background-color: #ffcccb; color: #e91e63; }
+        .played-card-tag.suit-black { background-color: #dcdcdc; color: #212121; }
+        .player-missing-suits { font-size: 0.7em; margin-top: 2px; font-weight: bold; color: #333; }
+        .missing-suit-icon { font-size: 1.1em; margin-right: 2px; }
+        .missing-suit-icon.suit-red { color: #e91e63; }
+        .missing-suit-icon.suit-black { color: #212121; }
+
+        /* Discard */
+        #out-of-play-container { margin-top: 10px; padding: 10px; background-color: #f0f0f0; border-radius: 8px; }
+        .discard-trick { margin-bottom: 8px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        .discard-list { list-style: none; padding: 0; margin: 5px 0 0 0; display: flex; flex-wrap: wrap; gap: 4px; }
+        .discard-trick-header { font-size: 0.9em; font-weight: bold; color: #5d4037; }
+        .discard-trick .played-card-tag { border-radius: 4px; padding: 5px 8px; font-size: 0.75em; }
+
+        /* Trick Area */
+        #current-trick-display { padding: 10px; border: 2px dashed #ffc107; border-radius: 8px; }
+        #trick-cards-list { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; }
+        #trick-buttons { margin-top: 10px; text-align: center; }
+        .trick-control-button { padding: 8px 15px; border-radius: 6px; border: none; cursor: pointer; margin: 0 5px; font-weight: bold; }
+        #tochoo-btn { background-color: #e91e63; color: white; }
+        #normal-end-btn { background-color: #4CAF50; color: white; }
+
+        /* Card Selection */
+        #player-turn-display { text-align: center; font-size: 1.3em; font-weight: bold; color: #ea4335; margin-bottom: 15px; padding: 10px; background: #fff0f0; border-radius: 8px; }
+        #card-selection { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-bottom: 15px; }
+        .card-option { 
+            background-color: #f0f0f0; border: 1px solid #ccc; padding: 6px 8px; border-radius: 6px; 
+            cursor: pointer; font-size: 0.9em; min-width: 48px; text-align: center; 
+            transition: all 0.1s ease-in-out; display: flex; align-items: center; justify-content: center; flex-direction: column; 
+            line-height: 1; height: 60px; box-sizing: border-box; 
+        }
+        .card-rank { font-weight: bold; font-size: 1.1em; margin-bottom: 2px; }
+        .card-suit { font-size: 1.3em; line-height: 1; }
+        .suit-red { color: #e91e63; }
+        .suit-black { color: #212121; }
+
+        #action-buttons { display: flex; justify-content: space-between; margin-top: 15px; }
+        .control-button { padding: 10px 15px; border-radius: 6px; cursor: pointer; border: 1px solid #ccc; background-color: #fff; }
+        #reset-btn { color: #ea4335; border-color: #ea4335; }
+
+        /* Modal */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
+        .modal-content { background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 300px; border-radius: 10px; text-align: center; }
+        .modal-player-option { display: block; width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; cursor: pointer; font-weight: bold; text-align: left; }
+        .modal-player-option.selected { background-color: #4285f4; color: white; border-color: #4285f4; }
+        .modal-player-option.default-pick { border: 2px solid #e91e63; }
+        .modal-buttons { margin-top: 15px; display: flex; justify-content: space-around; }
+
+        /* Voice Control UI */
+        #voice-control-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            z-index: 1000;
+        }
+        #mic-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            background-color: #4285f4;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        #mic-btn.listening {
+            background-color: #ea4335;
+            animation: pulse 1.5s infinite;
+        }
+        #voice-log {
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            font-size: 0.8em;
+            display: none;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(234, 67, 53, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <h1>Getaway Tracker</h1>
+
+        <div id="setup" class="section">
+            <h2>Players Setup</h2>
+            <p>Select the number of players (or say "Start with 3 players"):</p>
+            <button class="player-button" onclick="startGame(3)">3 Players</button>
+            <button class="player-button" onclick="startGame(4)">4 Players</button>
+            <button class="player-button" onclick="startGame(5)">5 Players</button>
+            <button class="player-button" onclick="startGame(6)">6 Players</button>
+            <p style="margin-top: 10px; font-size: 0.9em;">*Card distribution is approximate.</p>
+        </div>
+
+        <div id="game-state" style="display: none;">
+            <div class="section">
+                <h3>Player Hands</h3>
+                <ul id="player-hands-list"></ul>
+            </div>
+
+            <div class="section" id="current-trick-display">
+                <h3>Current Trick (<span id="trick-count">0</span> Cards)</h3>
+                <ul id="trick-cards-list"></ul>
+                <div id="trick-buttons" style="display: none;">
+                    <p style="font-weight: bold; margin-bottom: 5px;">Resolve Trick:</p>
+                    <button id="tochoo-btn" class="trick-control-button" onclick="showTrickEndModal(true)">TOCHOO (Pick Up)</button>
+                    <button id="normal-end-btn" class="trick-control-button" onclick="handleTrickEnd(false)">TRICK FINISHED (Out)</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Out of Play - <span id="out-of-play-count">0</span> Cards</h3>
+                <div id="out-of-play-container"></div>
+            </div>
+
+            <div class="section">
+                <div id="player-turn-display">Player 1's Turn</div>
+                <h3>Available Cards (To Play)</h3>
+                <div id="card-selection"></div>
+            </div>
+            
+            <div id="action-buttons">
+                <button id="reset-btn" class="control-button" onclick="resetGame()">Reset Game</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="playerPickModal" class="modal">
+      <div class="modal-content">
+        <h4>Who picks up the cards?</h4>
+        <div id="modalPlayerOptions"></div>
+        <div class="modal-buttons">
+            <button onclick="document.getElementById('playerPickModal').style.display='none'" class="control-button">Cancel</button>
+            <button onclick="resolveTochooPick()" id="modalConfirmButton" class="player-button" style="background-color: #34a853;">Confirm Pick</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="voice-control-container">
+        <div id="voice-log"></div>
+        <button id="mic-btn" onclick="toggleVoiceControl()">🎤</button>
+    </div>
+
+    <script>
+        // --- GAME CONFIGURATION ---
+        const RANKS_ASCENDING = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+        const RANKS_CUSTOM_SORT = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2']; 
+        const SUITS_CUSTOM_SORT = ['♠', '♥', '♣', '♦']; 
+        const TOTAL_CARDS = 52;
+
+        let players = 0;
+        let currentPlayerIndex = 0;
+        let deck = [];
+        let playersData = []; 
+        let currentTrick = []; 
+        let playedCardsTotal = new Set(); 
+        let outOfPlay = []; 
+        let selectedPickerIndex = -1; 
+        let activePlayers = []; 
+
+        // --- DOM ELEMENTS ---
+        const setupDiv = document.getElementById('setup');
+        const gameStateDiv = document.getElementById('game-state');
+        const turnDisplay = document.getElementById('player-turn-display');
+        const cardSelectionDiv = document.getElementById('card-selection');
+        const playerHandsList = document.getElementById('player-hands-list');
+        const trickCardsList = document.getElementById('trick-cards-list');
+        const trickCountSpan = document.getElementById('trick-count');
+        const trickButtonsDiv = document.getElementById('trick-buttons');
+        const outOfPlayContainer = document.getElementById('out-of-play-container');
+        const outOfPlayCountSpan = document.getElementById('out-of-play-count');
+        const modal = document.getElementById('playerPickModal');
+        const modalOptionsDiv = document.getElementById('modalPlayerOptions');
+
+        // --- VOICE RECOGNITION SETUP ---
+        const micBtn = document.getElementById('mic-btn');
+        const voiceLog = document.getElementById('voice-log');
+        let recognition;
+        let isListening = false;
+
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[event.results.length - 1][0].transcript.trim();
+                showVoiceLog(`Hheard: "${transcript}"`);
+                processVoiceCommand(transcript);
+            };
+
+            recognition.onerror = (event) => {
+                showVoiceLog("Voice Error: " + event.error);
+                if(isListening) toggleVoiceControl(); // stop on error
+            };
+            
+            recognition.onend = () => {
+                if (isListening) recognition.start(); // Restart if intended to be listening
+            };
+        } else {
+            micBtn.style.display = 'none';
+            alert("Voice control not supported in this browser. Use Chrome.");
+        }
+
+        function toggleVoiceControl() {
+            if (!recognition) return;
+            if (isListening) {
+                recognition.stop();
+                isListening = false;
+                micBtn.classList.remove('listening');
+                showVoiceLog("Microphone Off");
+            } else {
+                try {
+                    recognition.start();
+                    isListening = true;
+                    micBtn.classList.add('listening');
+                    showVoiceLog("Microphone On - Listening...");
+                } catch (e) { console.error(e); }
+            }
+        }
+
+        function showVoiceLog(msg) {
+            voiceLog.textContent = msg;
+            voiceLog.style.display = 'block';
+            setTimeout(() => { voiceLog.style.display = 'none'; }, 3000);
+        }
+
+        // --- VOICE LOGIC PROCESSING ---
+        const spokenRanks = {
+            "ace": "A", "king": "K", "queen": "Q", "jack": "J", "ten": "10", 
+            "nine": "9", "eight": "8", "seven": "7", "six": "6", "five": "5", 
+            "four": "4", "three": "3", "two": "2", "one": "A"
+        };
+        const spokenSuits = {
+            "spades": "♠", "spade": "♠",
+            "hearts": "♥", "heart": "♥",
+            "clubs": "♣", "club": "♣",
+            "diamonds": "♦", "diamond": "♦"
+        };
+        const numMap = { "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6 };
+
+        function processVoiceCommand(cmd) {
+            const lowerCmd = cmd.toLowerCase();
+
+            // 1. SETUP COMMANDS
+            if (lowerCmd.includes("start with")) {
+                const match = lowerCmd.match(/start with (\w+) players?/);
+                if (match) {
+                    let num = parseInt(match[1]);
+                    if (isNaN(num)) num = numMap[match[1]]; // try word map
+                    if (num >= 3 && num <= 6) startGame(num);
+                }
+            }
+            // 2. RESET
+            else if (lowerCmd.includes("reset game")) {
+                resetGame();
+            }
+            // 3. PLAY CARD (e.g., "Play Ace of Spades")
+            else if (lowerCmd.includes("play")) {
+                // Find Rank
+                let foundRank = null;
+                for (const [spoken, val] of Object.entries(spokenRanks)) {
+                    if (lowerCmd.includes(spoken) || lowerCmd.includes(val.toLowerCase())) {
+                        // Check exact digit match or word match
+                        if(lowerCmd.includes(" " + spoken) || lowerCmd.includes(spoken + " ") || lowerCmd.includes(val)) {
+                           foundRank = val;
+                           break; 
+                        }
+                    }
+                }
+                // Handle raw numbers (2-10) in string
+                if (!foundRank) {
+                   const digitMatch = lowerCmd.match(/\b(\d0?|10|a|j|q|k)\b/);
+                   if(digitMatch) foundRank = digitMatch[1].toUpperCase();
+                }
+
+                // Find Suit
+                let foundSuit = null;
+                for (const [spoken, val] of Object.entries(spokenSuits)) {
+                    if (lowerCmd.includes(spoken)) {
+                        foundSuit = val;
+                        break;
+                    }
+                }
+
+                if (foundRank && foundSuit) {
+                    playCard(`${foundRank}${foundSuit}`);
+                }
+            }
+            // 4. TRICK ACTIONS
+            else if (lowerCmd.includes("tochoo") || lowerCmd.includes("pick up")) {
+                if (document.getElementById('tochoo-btn').offsetParent !== null) {
+                    showTrickEndModal(true);
+                }
+            }
+            else if (lowerCmd.includes("trick finished") || lowerCmd.includes("cards out")) {
+                if (document.getElementById('normal-end-btn').offsetParent !== null) {
+                    handleTrickEnd(false);
+                }
+            }
+            // 5. MODAL SELECTION
+            else if (lowerCmd.includes("select player") || lowerCmd.includes("pick player")) {
+                const match = lowerCmd.match(/player (\w+)/);
+                if (match) {
+                    let num = parseInt(match[1]);
+                    if (isNaN(num)) num = numMap[match[1]];
+                    if (num && num > 0 && num <= players) {
+                        selectPlayer(num - 1); // convert to index
+                    }
+                }
+            }
+            else if (lowerCmd.includes("confirm pick")) {
+                if (modal.style.display === 'flex') resolveTochooPick();
+            }
+            else if (lowerCmd.includes("cancel")) {
+                 modal.style.display = 'none';
+            }
+        }
+
+
+        // --- INITIALIZATION ---
+
+        function initializeDeck() {
+            deck = [];
+            const MAX_RANK_VALUE = RANKS_CUSTOM_SORT.length - 1; 
+            SUITS_CUSTOM_SORT.forEach(suit => {
+                const isRedSuit = (suit === '♥' || suit === '♦');
+                RANKS_ASCENDING.forEach(rank => {
+                    const customRankIndex = RANKS_CUSTOM_SORT.indexOf(rank);
+                    const rankValue = MAX_RANK_VALUE - customRankIndex; 
+                    deck.push({ 
+                        rank: rank, suit: suit, display: `${rank}${suit}`, 
+                        colorClass: isRedSuit ? 'suit-red' : 'suit-black', rankValue: rankValue 
+                    }); 
+                });
+            });
+        }
+        
+        function distributeCards(numPlayers) {
+            const baseSize = Math.floor(TOTAL_CARDS / numPlayers);
+            const remainder = TOTAL_CARDS % numPlayers;
+            const distribution = [];
+            for (let i = 0; i < numPlayers; i++) {
+                distribution.push(baseSize + (i < remainder ? 1 : 0));
+            }
+            return distribution;
+        }
+
+        function startGame(numPlayers) {
+            players = numPlayers;
+            currentPlayerIndex = 0;
+            currentTrick = [];
+            playedCardsTotal.clear();
+            outOfPlay = [];
+            initializeDeck();
+            const initialDistribution = distributeCards(numPlayers);
+            playersData = [];
+            for (let i = 0; i < players; i++) {
+                playersData.push({
+                    unseenCount: initialDistribution[i], openCards: [], 
+                    display: `Player ${i + 1}`, missingSuits: new Set(), totalCards: initialDistribution[i] 
+                });
+            }
+            activePlayers = Array.from({length: players}, (_, i) => i);
+            setupDiv.style.display = 'none';
+            gameStateDiv.style.display = 'block';
+            renderAllUI();
+        }
+        
+        function resetGame() {
+            if (confirm("Are you sure you want to reset the game?")) {
+                players = 0;
+                currentPlayerIndex = 0;
+                currentTrick = [];
+                playedCardsTotal.clear();
+                playersData = [];
+                outOfPlay = [];
+                activePlayers = [];
+                gameStateDiv.style.display = 'none';
+                setupDiv.style.display = 'block';
+                playerHandsList.innerHTML = '';
+                trickCardsList.innerHTML = '';
+                outOfPlayContainer.innerHTML = '';
+                trickCountSpan.textContent = '0';
+                outOfPlayCountSpan.textContent = '0';
+                cardSelectionDiv.innerHTML = '';
+            }
+        }
+
+        function renderAllUI() {
+            renderTurn();
+            renderPlayerHands();
+            renderCardOptions();
+            renderTrick();
+            renderOutOfPlay();
+        }
+
+        function sortCustomCards(a, b) {
+            const suitIndexA = SUITS_CUSTOM_SORT.indexOf(a.suit);
+            const suitIndexB = SUITS_CUSTOM_SORT.indexOf(b.suit);
+            if (suitIndexA !== suitIndexB) return suitIndexA - suitIndexB;
+            const rankIndexA = RANKS_CUSTOM_SORT.indexOf(a.rank);
+            const rankIndexB = RANKS_CUSTOM_SORT.indexOf(b.rank);
+            return rankIndexA - rankIndexB;
+        }
+
+        function renderTurn() {
+            if (activePlayers.length === 0) {
+                 turnDisplay.textContent = "GAME OVER: All players are out!";
+                 cardSelectionDiv.style.pointerEvents = 'none';
+                 return;
+            }
+            turnDisplay.textContent = `${playersData[currentPlayerIndex].display}'s Turn`;
+        }
+        
+        function updateActivePlayers() {
+            activePlayers = [];
+            playersData.forEach((player, index) => {
+                player.totalCards = player.unseenCount + player.openCards.length; 
+                if (player.totalCards > 0) activePlayers.push(index);
+            });
+        }
+
+        function renderPlayerHands() {
+            playerHandsList.innerHTML = '';
+            updateActivePlayers(); 
+            playersData.forEach((player, index) => {
+                const li = document.createElement('li');
+                li.className = 'player-hand';
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'player-hand-name';
+                if (player.totalCards === 0) {
+                    nameDiv.textContent = `${player.display} (OUT)`;
+                    nameDiv.classList.add('out');
+                } else {
+                    nameDiv.textContent = player.display;
+                    nameDiv.onclick = () => setCustomName(index);
+                    if (index === currentPlayerIndex) nameDiv.style.color = '#ea4335'; 
+                    else nameDiv.style.color = '#4285f4';
+                }
+                li.appendChild(nameDiv);
+                const cardsDiv = document.createElement('div');
+                cardsDiv.className = 'player-hand-cards';
+                const unseenTag = document.createElement('span');
+                unseenTag.className = 'hand-tag unseen-tag';
+                unseenTag.textContent = `? x${player.unseenCount}`;
+                unseenTag.onclick = () => adjustHandSize(index); 
+                cardsDiv.appendChild(unseenTag);
+                player.openCards.sort(sortCustomCards).forEach(card => {
+                    const openTag = document.createElement('span');
+                    openTag.className = `played-card-tag ${card.colorClass}`;
+                    openTag.textContent = card.display;
+                    cardsDiv.appendChild(openTag);
+                });
+                if (player.missingSuits.size > 0) {
+                    const missing = document.createElement('div');
+                    missing.className = 'player-missing-suits';
+                    const missingSuitsArray = Array.from(player.missingSuits).sort((a, b) => SUITS_CUSTOM_SORT.indexOf(a) - SUITS_CUSTOM_SORT.indexOf(b));
+                    const iconSpans = missingSuitsArray.map(suit => {
+                        const iconSpan = document.createElement('span');
+                        iconSpan.textContent = suit;
+                        iconSpan.className = 'missing-suit-icon';
+                        const isRed = (suit === '♥' || suit === '♦');
+                        iconSpan.classList.add(isRed ? 'suit-red' : 'suit-black');
+                        return iconSpan.outerHTML;
+                    });
+                    missing.innerHTML = `Missing: ${iconSpans.join(' ')}`;
+                    cardsDiv.appendChild(missing);
+                }
+                li.appendChild(cardsDiv);
+                playerHandsList.appendChild(li);
+            });
+        }
+
+        function renderOutOfPlay() {
+            outOfPlayContainer.innerHTML = '';
+            let totalCards = 0;
+            outOfPlay.forEach(trickData => {
+                const trickDiv = document.createElement('div');
+                trickDiv.className = 'discard-trick';
+                const header = document.createElement('div');
+                header.className = 'discard-trick-header';
+                header.textContent = `Discarded Trick ${trickData.trick} (${trickData.cards.length} cards)`;
+                trickDiv.appendChild(header);
+                const ul = document.createElement('ul');
+                ul.className = 'discard-list';
+                trickData.cards.sort(sortCustomCards).forEach(trickItem => {
+                    const card = deck.find(c => c.display === trickItem.card);
+                    const li = document.createElement('li');
+                    li.className = `played-card-tag ${card.colorClass}`; 
+                    li.textContent = `${card.display} (${playersData[trickItem.playedBy].display})`;
+                    ul.appendChild(li);
+                    totalCards++;
+                });
+                trickDiv.appendChild(ul);
+                outOfPlayContainer.appendChild(trickDiv);
+            });
+            outOfPlayCountSpan.textContent = totalCards;
+        }
+
+        function renderCardOptions() {
+            cardSelectionDiv.innerHTML = '';
+            const currentPlayer = playersData[currentPlayerIndex];
+            if (!currentPlayer || currentPlayer.totalCards === 0) {
+                 cardSelectionDiv.innerHTML = "<p style='width: 100%; text-align: center; color: #888; font-weight: bold;'>Player is OUT.</p>";
+                 cardSelectionDiv.style.pointerEvents = 'none';
+                 return;
+            }
+            const availableCards = deck.filter(card => !playedCardsTotal.has(card.display));
+            const cardsInTrick = new Set(currentTrick.map(c => c.card));
+            let cardsToDisplay = availableCards.filter(card => !cardsInTrick.has(card.display));
+
+            if (currentPlayer.openCards.length > 0) {
+                const openCardDisplays = new Set(currentPlayer.openCards.map(c => c.display));
+                cardsToDisplay = cardsToDisplay.filter(card => openCardDisplays.has(card.display));
+            }
+
+            if (cardsToDisplay.length === 0) {
+                cardSelectionDiv.innerHTML = "<p style='width: 100%; text-align: center; color: green; font-weight: bold;'>No cards left to play.</p>";
+                cardSelectionDiv.style.pointerEvents = 'none';
+                return;
+            } 
+            
+            cardsToDisplay.sort(sortCustomCards);
+            cardsToDisplay.forEach(card => {
+                const button = document.createElement('button');
+                button.className = 'card-option';
+                const rankSpan = document.createElement('span');
+                rankSpan.className = 'card-rank';
+                rankSpan.textContent = card.rank;
+                const suitSpan = document.createElement('span');
+                suitSpan.className = `card-suit ${card.colorClass}`;
+                suitSpan.textContent = card.suit;
+                button.appendChild(rankSpan);
+                button.appendChild(suitSpan);
+                button.onclick = () => playCard(card.display); 
+                cardSelectionDiv.appendChild(button);
+            });
+        }
+
+        function renderTrick() {
+            trickCardsList.innerHTML = '';
+            trickCountSpan.textContent = currentTrick.length;
+            let showTrickButtons = false;
+            currentTrick.forEach(trickItem => {
+                const card = deck.find(c => c.display === trickItem.card);
+                const li = document.createElement('li');
+                li.className = 'played-card-tag ' + card.colorClass;
+                li.textContent = `${card.display} (${playersData[trickItem.playedBy].display})`;
+                trickCardsList.appendChild(li);
+            });
+            if (currentTrick.length > 0) {
+                const leadCard = deck.find(c => c.display === currentTrick[0].card);
+                const leadSuit = leadCard.suit;
+                const lastCard = deck.find(c => c.display === currentTrick[currentTrick.length - 1].card);
+                if (currentTrick.length > 1 && lastCard.suit !== leadSuit) {
+                    showTrickButtons = true; 
+                    if (currentTrick.length < activePlayers.length) turnDisplay.textContent = "Tochoo played!";
+                }
+                if (currentTrick.length === activePlayers.length) {
+                    showTrickButtons = true; 
+                    cardSelectionDiv.style.pointerEvents = 'none'; 
+                    turnDisplay.textContent = "Trick Finished - Resolve Cards!";
+                }
+            }
+            if (showTrickButtons) trickButtonsDiv.style.display = 'block';
+            else {
+                trickButtonsDiv.style.display = 'none';
+                cardSelectionDiv.style.pointerEvents = 'auto'; 
+            }
+        }
+        
+        function setCustomName(playerIndex) {
+            const currentName = playersData[playerIndex].display;
+            let newName = prompt(`Enter a new name for Player ${playerIndex + 1}:`, currentName);
+            if (newName && newName.trim() !== "") {
+                playersData[playerIndex].display = newName.trim();
+                renderAllUI(); 
+            }
+        }
+
+        function adjustHandSize(playerIndex) {
+            const currentUnseen = playersData[playerIndex].unseenCount;
+            let newCount = prompt(`Enter unseen cards for ${playersData[playerIndex].display}:`, currentUnseen);
+            if (newCount !== null) {
+                newCount = parseInt(newCount);
+                if (!isNaN(newCount) && newCount >= 0) {
+                    playersData[playerIndex].unseenCount = newCount;
+                    updateActivePlayers(); renderPlayerHands(); 
+                }
+            }
+        }
+        
+        function getNextActivePlayerIndex(currentIndex) {
+            if (activePlayers.length === 0) return -1;
+            const currentIndexInActive = activePlayers.indexOf(currentIndex);
+            let nextIndexInActive = (currentIndexInActive + 1) % activePlayers.length;
+            return activePlayers[nextIndexInActive];
+        }
+
+        function findHighestCardPlayerIndex(trick) {
+            if (trick.length === 0) return -1;
+            const leadCard = deck.find(c => c.display === trick[0].card);
+            const leadSuit = leadCard.suit;
+            let highestRankValue = -1;
+            let highestCardPlayerIndex = -1;
+            trick.forEach(trickItem => {
+                const card = deck.find(c => c.display === trickItem.card);
+                if (card.suit === leadSuit) {
+                    if (card.rankValue > highestRankValue) {
+                        highestRankValue = card.rankValue;
+                        highestCardPlayerIndex = trickItem.playedBy;
+                    }
+                }
+            });
+            if (highestCardPlayerIndex === -1) return trick[0].playedBy;
+            return highestCardPlayerIndex;
+        }
+
+        function playCard(cardDisplayValue) {
+            const card = deck.find(c => c.display === cardDisplayValue);
+            const currentPlayer = playersData[currentPlayerIndex];
+            if (!card || playedCardsTotal.has(card.display) || currentPlayer.totalCards === 0) return; 
+            if (currentTrick.find(c => c.card === cardDisplayValue)) return;
+
+            const openCardIndex = currentPlayer.openCards.findIndex(c => c.display === card.display);
+            if (openCardIndex !== -1) currentPlayer.openCards.splice(openCardIndex, 1); 
+            else if (currentPlayer.unseenCount > 0) currentPlayer.unseenCount--; 
+            else return;
+            
+            currentPlayer.totalCards--; 
+            
+            const leadSuit = currentTrick.length > 0 ? deck.find(c => c.display === currentTrick[0].card).suit : null;
+            const isTochoo = leadSuit && card.suit !== leadSuit;
+
+            if (isTochoo) currentPlayer.missingSuits.add(leadSuit);
+            else if (leadSuit && card.suit === leadSuit) currentPlayer.missingSuits.delete(leadSuit);
+
+            currentTrick.push({
+                card: card.display, playedBy: currentPlayerIndex,
+                rank: card.rank, suit: card.suit, colorClass: card.colorClass
+            });
+            
+            const activePlayersInTrick = activePlayers.length;
+            const trickFull = currentTrick.length === activePlayersInTrick;
+            
+            if (!trickFull && !isTochoo) currentPlayerIndex = getNextActivePlayerIndex(currentPlayerIndex);
+            if (currentPlayer.totalCards === 0) updateActivePlayers();
+            renderAllUI();
+        }
+
+        function showTrickEndModal(isTochoo) {
+            if (currentTrick.length === 0) return;
+            selectedPickerIndex = findHighestCardPlayerIndex(currentTrick);
+            modalOptionsDiv.innerHTML = '';
+            activePlayers.forEach(index => {
+                const player = playersData[index];
+                const button = document.createElement('button');
+                button.className = 'modal-player-option';
+                button.textContent = player.display;
+                button.dataset.index = index;
+                button.onclick = () => selectPlayer(index);
+                if (index === selectedPickerIndex) button.classList.add('selected', 'default-pick');
+                modalOptionsDiv.appendChild(button);
+            });
+            modal.style.display = 'flex';
+        }
+
+        function selectPlayer(index) {
+            selectedPickerIndex = index;
+            document.querySelectorAll('.modal-player-option').forEach(btn => {
+                btn.classList.remove('selected');
+                if (parseInt(btn.dataset.index) === index) btn.classList.add('selected');
+            });
+        }
+
+        function resolveTochooPick() {
+            if (selectedPickerIndex === -1) return alert("Select a player.");
+            const pickerPlayer = playersData[selectedPickerIndex];
+            const pickedUpCount = currentTrick.length;
+            currentTrick.forEach(trickItem => {
+                const card = deck.find(c => c.display === trickItem.card);
+                pickerPlayer.openCards.push(card);
+                pickerPlayer.missingSuits.delete(card.suit);
+            });
+            pickerPlayer.totalCards += pickedUpCount; 
+            currentPlayerIndex = selectedPickerIndex;
+            currentTrick = [];
+            modal.style.display = 'none';
+            selectedPickerIndex = -1;
+            renderAllUI();
+        }
+
+        function handleTrickEnd(isTochoo) {
+            if (currentTrick.length === 0) return; 
+            if (!isTochoo) {
+                if (!confirm("Confirm TRICK FINISHED NORMALLY?")) return;
+                outOfPlay.push({ trick: outOfPlay.length + 1, cards: currentTrick });
+                currentTrick.forEach(trickItem => playedCardsTotal.add(trickItem.card));
+                const nextPlayerIndex = findHighestCardPlayerIndex(currentTrick);
+                currentTrick = [];
+                currentPlayerIndex = nextPlayerIndex; 
+                renderAllUI();
+            } 
+        }
+
+        initializeDeck();
+    </script>
+</body>
+</html>
